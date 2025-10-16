@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบยืนยันการเข้าร่วมกิจกรรม - โรงเรียนสตรีพัทลุง</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        .gradient-bg {
+            background: #ffffff; 
+        }
+        .glass-effect {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease-in-out;
+        }
+        .notification.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+    <div id="notification" class="notification">
+        <div class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
+            <div class="flex items-center">
+                <span id="notificationText">บันทึกข้อมูลสำเร็จ!</span>
+                <button onclick="hideNotification()" class="ml-4 text-white hover:text-gray-200">
+                    ✕
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <div class="glass-effect rounded-3xl p-8 shadow-2xl animate-fade-in">
+                <img src="https://img5.pic.in.th/file/secure-sv1/IMG_25650953161d1c1bbdd8.jpeg" 
+                     alt="โลโก้โรงเรียนสตรีพัทลุง" 
+                     class="w-24 h-24 mx-auto mb-4 rounded-full shadow-lg"
+                     onerror="this.src=''; this.alt='โลโก้โรงเรียน'; this.style.display='none';">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">ระบบยืนยันการเข้าร่วมกิจกรรม</h1>
+                <p class="text-lg text-gray-600">โรงเรียนคุณธรรม สพฐ. โรงเรียนสตรีพัทลุง</p>
+            </div>
+        </header>
+
+        <main class="max-w-4xl mx-auto">
+            <div id="studentForm" class="glass-effect rounded-3xl p-8 shadow-2xl mb-8 animate-fade-in">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">📝 ลงทะเบียนเข้าร่วมกิจกรรม</h2>
+                
+                <form id="registrationForm" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="studentId" class="block text-sm font-medium text-gray-700 mb-2">เลขประจำตัวนักเรียน (5 หลัก)</label>
+                            <input type="text" id="studentId" maxlength="5" pattern="[0-9]{5}" inputmode="numeric"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                   placeholder="เช่น 12345" required>
+                        </div>
+                        
+                        <div>
+                            <label for="prefix" class="block text-sm font-medium text-gray-700 mb-2">คำนำหน้า</label>
+                            <select id="prefix" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" required>
+                                <option value="">เลือกคำนำหน้า</option>
+                                <option value="นาย">นาย</option>
+                                <option value="นางสาว">นางสาว</option>
+                                <option value="เด็กชาย">เด็กชาย</option>
+                                <option value="เด็กหญิง">เด็กหญิง</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="firstName" class="block text-sm font-medium text-gray-700 mb-2">ชื่อ</label>
+                            <input type="text" id="firstName" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                   placeholder="ชื่อจริง" required>
+                        </div>
+                        
+                        <div>
+                            <label for="lastName" class="block text-sm font-medium text-gray-700 mb-2">นามสกุล</label>
+                            <input type="text" id="lastName" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                   placeholder="นามสกุล" required>
+                        </div>
+                        
+                        <div>
+                            <label for="grade" class="block text-sm font-medium text-gray-700 mb-2">ระดับชั้น</label>
+                            <select id="grade" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" required>
+                                <option value="">เลือกระดับชั้น</option>
+                                <option value="ม.1">ม.1</option>
+                                <option value="ม.2">ม.2</option>
+                                <option value="ม.3">ม.3</option>
+                                <option value="ม.4">ม.4</option>
+                                <option value="ม.5">ม.5</option>
+                                <option value="ม.6">ม.6</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="room" class="block text-sm font-medium text-gray-700 mb-2">ห้อง</label>
+                            <select id="room" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" required>
+                                <option value="">เลือกห้อง</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg">
+                            ✅ ยืนยันการเข้าร่วม
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="glass-effect rounded-3xl p-8 shadow-2xl mb-8 animate-fade-in">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">🔐 เข้าสู่ระบบผู้ดูแล</h2>
+                
+                <div id="loginSection">
+                    <form id="loginForm" class="space-y-4 max-w-md mx-auto">
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">อีเมล</label>
+                            <input type="email" id="email" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                   placeholder="admin@example.com" required>
+                        </div>
+                        
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">รหัสผ่าน</label>
+                            <input type="password" id="password" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                   placeholder="รหัสผ่าน" required>
+                        </div>
+                        
+                        <div class="text-center">
+                            <button type="submit" class="bg-gradient-to-r from-green-500 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-green-600 hover:to-teal-700 transform hover:scale-105 transition-all duration-200 shadow-lg">
+                                🔑 เข้าสู่ระบบ
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="adminPanel" class="hidden">
+                    <div class="text-center mb-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">📊 แผงควบคุมผู้ดูแล</h3>
+                        <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                            ออกจากระบบ
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                        <button onclick="exportAllData()" class="bg-blue-500 text-white px-4 py-3 rounded-xl hover:bg-blue-600 transition-colors">
+                            📄 ส่งออกทั้งหมด
+                        </button>
+                        <button onclick="showFilterOptions()" class="bg-purple-500 text-white px-4 py-3 rounded-xl hover:bg-purple-600 transition-colors">
+                            🔍 กรอง/ส่งออกตามชั้น/ห้อง
+                        </button>
+                        <button onclick="clearAllData()" class="bg-red-500 text-white px-4 py-3 rounded-xl hover:bg-red-600 transition-colors">
+                            🗑️ ลบข้อมูลทั้งหมด
+                        </button>
+                    </div>
+
+                    <div id="filterOptions" class="hidden mb-6 p-4 bg-gray-100 rounded-xl">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="filterGrade" class="block text-sm font-medium text-gray-700 mb-2">เลือกชั้น</label>
+                                <select id="filterGrade" onchange="applyFilters()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                    <option value="">ทุกชั้น</option>
+                                    <option value="ม.1">ม.1</option>
+                                    <option value="ม.2">ม.2</option>
+                                    <option value="ม.3">ม.3</option>
+                                    <option value="ม.4">ม.4</option>
+                                    <option value="ม.5">ม.5</option>
+                                    <option value="ม.6">ม.6</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filterRoom" class="block text-sm font-medium text-gray-700 mb-2">เลือกห้อง</label>
+                                <select id="filterRoom" onchange="applyFilters()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                    <option value="">ทุกห้อง</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                    <option value="11">11</option>
+                                    <option value="12">12</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg p-4 mb-4">
+                            <h5 class="font-semibold text-gray-800 mb-3">📋 ตัวอย่างข้อมูลที่จะส่งออก</h5>
+                            <div id="filteredPreview" class="space-y-2 max-h-48 overflow-y-auto">
+                                </div>
+                            <div id="filterCount" class="text-sm text-gray-600 mt-2 font-medium">
+                                </div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <button onclick="exportFilteredData()" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                                📤 ส่งออกข้อมูลที่เลือก
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-6 shadow-inner">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">📋 รายชื่อนักเรียนที่ลงทะเบียนล่าสุด</h4>
+                        <div id="studentList" class="space-y-2 max-h-96 overflow-y-auto">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-12">
+            <div class="glass-effect rounded-3xl p-6 shadow-2xl">
+                <p class="text-gray-600">©️ 2024 SPT MORAL SCHOOL - โรงเรียนคุณธรรม สพฐ. โรงเรียนสตรีพัทลุง | All Rights Reserved</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // 1. Firebase Configuration - กรุณาตรวจสอบให้แน่ใจว่าค่าเหล่านี้ถูกต้อง
+        const firebaseConfig = {
+          apiKey: "AIzaSyDjTCGhEd6WnLn7Q50nj1N_ZCNUPINxGOM",
+          authDomain: "comfirm-57d16.firebaseapp.com",
+          projectId: "comfirm-57d16",
+          storageBucket: "comfirm-57d16.firebasestorage.app",
+          messagingSenderId: "147672288587",
+          appId: "1:147672288587:web:a284f74f5f8c7441476cce",
+          measurementId: "G-JL3DYQYBWJ"
+        };
+
+        // 2. Initialize Firebase และกำหนดตัวแปร
+        let db;
+        let auth;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+        } catch (error) {
+            console.error("Firebase Initialization Error:", error);
+            // แจ้งเตือนผู้ใช้หาก Firebase เริ่มต้นไม่ได้
+            document.addEventListener('DOMContentLoaded', () => {
+                showNotification("เกิดข้อผิดพลาดในการเชื่อมต่อ Firebase. โปรดตรวจสอบ Console (F12)", 'error');
+            });
+        }
+        
+        // Notification functions
+        let notificationTimeout;
+        function showNotification(message, type = 'success') {
+            clearTimeout(notificationTimeout);
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            const notificationDiv = notification.querySelector('div');
+            
+            notificationText.textContent = message;
+            
+            let bgColor = 'bg-green-500';
+            if (type === 'error') {
+                bgColor = 'bg-red-500';
+            } else if (type === 'warning') {
+                bgColor = 'bg-yellow-500';
+            }
+            
+            notificationDiv.className = `${bgColor} text-white px-6 py-3 rounded-lg shadow-lg`;
+            
+            notification.classList.add('show');
+            
+            notificationTimeout = setTimeout(() => {
+                hideNotification();
+            }, 5000);
+        }
+
+        function hideNotification() {
+            document.getElementById('notification').classList.remove('show');
+        }
+
+        // Student Registration
+        document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!db) {
+                showNotification("ระบบ Firebase ยังไม่พร้อมใช้งาน", 'error');
+                return;
+            }
+
+            const studentId = document.getElementById('studentId').value.trim();
+            const prefix = document.getElementById('prefix').value;
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const room = document.getElementById('room').value;
+
+            if (studentId.length !== 5 || isNaN(parseInt(studentId))) {
+                 showNotification('เลขประจำตัวนักเรียนต้องเป็นตัวเลข 5 หลัก', 'error');
+                 return;
+            }
+
+            const studentData = {
+                studentId: studentId,
+                prefix: prefix,
+                firstName: firstName,
+                lastName: lastName,
+                grade: grade,
+                room: room,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                // Check if student ID already exists (ใช้ doc(studentId) เป็น ID)
+                const existingStudent = await db.collection('students').doc(studentId).get();
+                if (existingStudent.exists) {
+                    showNotification('เลขประจำตัวนักเรียนนี้ได้ลงทะเบียนแล้ว', 'error');
+                    return;
+                }
+
+                await db.collection('students').doc(studentId).set(studentData); // ใช้ studentId เป็น Doc ID
+                showNotification(`ลงทะเบียนสำเร็จ: ${prefix}${firstName} ${lastName}`);
+                document.getElementById('registrationForm').reset();
+                
+                // Refresh student list if admin is logged in
+                if (document.getElementById('adminPanel') && !document.getElementById('adminPanel').classList.contains('hidden')) {
+                    loadStudentList();
+                }
+            } catch (error) {
+                console.error('Error adding student:', error);
+                // ตรวจสอบ Error Code เพื่อช่วยวินิจฉัย เช่น Permission Denied
+                if (error.code === 'permission-denied') {
+                    showNotification('ลงทะเบียนไม่สำเร็จ: กรุณาตรวจสอบ Firestore Security Rules', 'error');
+                } else {
+                    showNotification('เกิดข้อผิดพลาดในการลงทะเบียน กรุณาลองใหม่อีกครั้ง', 'error');
+                }
+            }
+        });
+
+        // Admin Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!auth) {
+                showNotification("ระบบ Firebase Auth ยังไม่พร้อมใช้งาน", 'error');
+                return;
+            }
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                // showAdminPanel จะถูกเรียกผ่าน auth.onAuthStateChanged
+            } catch (error) {
+                console.error('Login error:', error);
+                let errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    // ใช้ข้อความเดียวเพื่อป้องกันการคาดเดาอีเมล
+                } else {
+                    errorMessage = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+                }
+                showNotification(errorMessage, 'error');
+            }
+        });
+
+        function showAdminPanel() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('adminPanel').classList.remove('hidden');
+            showNotification('เข้าสู่ระบบสำเร็จ');
+            loadStudentList();
+        }
+
+        function logout() {
+            auth.signOut().then(() => {
+                document.getElementById('loginSection').classList.remove('hidden');
+                document.getElementById('adminPanel').classList.add('hidden');
+                document.getElementById('filterOptions').classList.add('hidden');
+                showNotification('ออกจากระบบแล้ว');
+            }).catch(error => {
+                console.error("Logout error:", error);
+                showNotification('เกิดข้อผิดพลาดในการออกจากระบบ', 'error');
+            });
+        }
+
+        // Load student list (แสดงเฉพาะรายการล่าสุด)
+        async function loadStudentList() {
+            if (!db) return;
+            try {
+                const snapshot = await db.collection('students').orderBy('timestamp', 'desc').limit(20).get(); 
+                const studentList = document.getElementById('studentList');
+                studentList.innerHTML = '';
+
+                if (snapshot.empty) {
+                    studentList.innerHTML = '<p class="text-gray-500 text-center">ยังไม่มีนักเรียนลงทะเบียน</p>';
+                    return;
+                }
+
+                snapshot.forEach((doc) => {
+                    const student = doc.data();
+                    const studentDiv = document.createElement('div');
+                    studentDiv.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg shadow-sm hover:bg-gray-100 transition-colors';
+                    studentDiv.innerHTML = `
+                        <div>
+                            <span class="font-semibold">${student.studentId}</span> - 
+                            ${student.prefix}${student.firstName} ${student.lastName} 
+                            (<span class="text-blue-600">${student.grade}/${student.room}</span>)
+                        </div>
+                        <button onclick="deleteStudent('${doc.id}')" 
+                                class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors text-sm ml-2">
+                            ลบ
+                        </button>
+                    `;
+                    studentList.appendChild(studentDiv);
+                });
+            } catch (error) {
+                console.error('Error loading students:', error);
+                showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูลนักเรียน', 'error');
+            }
+        }
+
+        // Delete student
+        async function deleteStudent(studentId) {
+            if (!db) return;
+            if (confirm(`คุณแน่ใจหรือไม่ที่จะลบข้อมูลนักเรียน ID: ${studentId} ?`)) {
+                try {
+                    await db.collection('students').doc(studentId).delete();
+                    showNotification('ลบข้อมูลสำเร็จ');
+                    loadStudentList();
+                } catch (error) {
+                    console.error('Error deleting student:', error);
+                    showNotification('เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+                }
+            }
+        }
+
+        // Clear all data
+        async function clearAllData() {
+            if (!db) return;
+            if (confirm('⚠️ คำเตือน: คุณแน่ใจหรือไม่ที่จะลบข้อมูลทั้งหมด? การกระทำนี้ไม่สามารถย้อนกลับได้!')) {
+                try {
+                    const snapshot = await db.collection('students').get();
+                    if (snapshot.empty) {
+                        showNotification('ไม่มีข้อมูลให้ลบ', 'warning');
+                        return;
+                    }
+
+                    const batch = db.batch();
+                    
+                    snapshot.docs.forEach((doc) => {
+                        batch.delete(doc.ref);
+                    });
+                    
+                    await batch.commit();
+                    showNotification(`ลบข้อมูลทั้งหมดจำนวน ${snapshot.size} รายการสำเร็จ`);
+                    loadStudentList();
+                } catch (error) {
+                    console.error('Error clearing data:', error);
+                    showNotification('เกิดข้อผิดพลาดในการลบข้อมูลทั้งหมด', 'error');
+                }
+            }
+        }
+
+        // Export/Filter functions
+        function showFilterOptions() {
+            const filterOptionsDiv = document.getElementById('filterOptions');
+            if (filterOptionsDiv.classList.contains('hidden')) {
+                 filterOptionsDiv.classList.remove('hidden');
+                 document.getElementById('filterGrade').value = '';
+                 document.getElementById('filterRoom').value = '';
+                 applyFilters(); 
+            } else {
+                 filterOptionsDiv.classList.add('hidden');
+            }
+        }
+
+        async function applyFilters() {
+            if (!db) return;
+            const grade = document.getElementById('filterGrade').value;
+            const room = document.getElementById('filterRoom').value;
+            
+            try {
+                let query = db.collection('students');
+                
+                if (grade) {
+                    query = query.where('grade', '==', grade);
+                }
+                if (room) {
+                    query = query.where('room', '==', room);
+                }
+                
+                query = query.orderBy('grade').orderBy('room').orderBy('studentId'); 
+                
+                const snapshot = await query.get();
+                const filteredPreview = document.getElementById('filteredPreview');
+                const filterCount = document.getElementById('filterCount');
+                
+                filteredPreview.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    filteredPreview.innerHTML = '<p class="text-gray-500 text-center">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</p>';
+                    filterCount.textContent = 'จำนวน: 0 คน';
+                    return;
+                }
+                
+                let count = 0;
+                snapshot.forEach((doc) => {
+                    const student = doc.data();
+                    count++;
+                    
+                    const studentDiv = document.createElement('div');
+                    studentDiv.className = 'flex justify-between items-center p-2 bg-gray-50 rounded text-sm';
+                    studentDiv.innerHTML = `
+                        <div>
+                            <span class="font-medium">${student.studentId}</span> - 
+                            ${student.prefix}${student.firstName} ${student.lastName} 
+                            (${student.grade}/${student.room})
+                        </div>
+                    `;
+                    filteredPreview.appendChild(studentDiv);
+                });
+                
+                filterCount.textContent = `จำนวน: ${count} คน`;
+                
+            } catch (error) {
+                console.error('Error applying filters:', error);
+                document.getElementById('filteredPreview').innerHTML = '<p class="text-red-500 text-center">เกิดข้อผิดพลาดในการกรองข้อมูล</p>';
+            }
+        }
+
+        async function exportAllData() {
+            if (!db) return;
+            try {
+                const snapshot = await db.collection('students').orderBy('grade').orderBy('room').orderBy('studentId').get();
+                if (snapshot.empty) {
+                     showNotification('ไม่มีข้อมูลให้ส่งออก', 'warning');
+                     return;
+                }
+                const csvData = generateCSV(snapshot.docs);
+                downloadCSV(csvData, 'students_all_data.csv');
+                showNotification(`ส่งออกข้อมูลทั้งหมด ${snapshot.size} รายการสำเร็จ`);
+            } catch (error) {
+                console.error('Error exporting data:', error);
+                showNotification('เกิดข้อผิดพลาดในการส่งออกข้อมูล', 'error');
+            }
+        }
+
+        async function exportFilteredData() {
+            if (!db) return;
+            const grade = document.getElementById('filterGrade').value;
+            const room = document.getElementById('filterRoom').value;
+            
+            try {
+                let query = db.collection('students');
+                
+                if (grade) {
+                    query = query.where('grade', '==', grade);
+                }
+                if (room) {
+                    query = query.where('room', '==', room);
+                }
+                
+                const snapshot = await query.orderBy('studentId').get();
+
+                if (snapshot.empty) {
+                     showNotification('ไม่พบข้อมูลตามเงื่อนไขที่เลือกเพื่อส่งออก', 'warning');
+                     return;
+                }
+                
+                const csvData = generateCSV(snapshot.docs);
+                
+                let filename = 'students';
+                if (grade) filename += `_${grade}`;
+                if (room) filename += `_room${room}`;
+                filename += '.csv';
+                
+                downloadCSV(csvData, filename);
+                showNotification(`ส่งออกข้อมูล ${snapshot.size} รายการสำเร็จ`);
+                document.getElementById('filterOptions').classList.add('hidden');
+            } catch (error) {
+                console.error('Error exporting filtered data:', error);
+                showNotification('เกิดข้อผิดพลาดในการส่งออกข้อมูล', 'error');
+            }
+        }
+
+        // ใช้ Tab-Separated Values (TSV) สำหรับข้อมูลภาษาไทย
+        function generateCSV(docs) {
+            const separator = '\t'; 
+            const headers = ['เลขประจำตัว', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'ระดับชั้น', 'ห้อง', 'วันที่ลงทะเบียน'];
+            let csv = headers.join(separator) + '\n';
+            
+            docs.forEach((doc) => {
+                const student = doc.data();
+                
+                const timestamp = student.timestamp && student.timestamp.toDate ? 
+                                  student.timestamp.toDate().toLocaleString('th-TH') : 
+                                  'N/A';
+                                  
+                const sanitize = (text) => {
+                    if (typeof text !== 'string') text = String(text);
+                    return text.replace(/[\n\r\t]/g, ' ').trim(); // ลบ Tab และ Newline
+                }
+                
+                const row = [
+                    sanitize(student.studentId),
+                    sanitize(student.prefix),
+                    sanitize(student.firstName),
+                    sanitize(student.lastName),
+                    sanitize(student.grade),
+                    sanitize(student.room),
+                    sanitize(timestamp)
+                ];
+                csv += row.join(separator) + '\n';
+            });
+            
+            return csv;
+        }
+
+        // Download function (เพิ่มการรองรับ Unicode/UTF-8 BOM)
+        function downloadCSV(csvData, filename) {
+            const blob = new Blob(['\ufeff' + csvData], { type: 'text/csv;charset=utf-8;' }); 
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Check auth state
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                showAdminPanel();
+            } else {
+                 document.getElementById('loginSection').classList.remove('hidden');
+                 document.getElementById('adminPanel').classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
